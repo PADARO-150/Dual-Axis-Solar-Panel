@@ -1,0 +1,122 @@
+#include <Servo.h>
+
+// Declaration of both servos
+Servo servohor;
+Servo servover;
+
+// Maximum and minimum angle statement for both servos
+#define servo_limit_high 150
+#define servo_limit_low 30
+
+// Declaration of the number of degrees that each servo will move in each loop. In our case, 1 degree.
+#define paso_hor 1
+#define paso_ver 1
+
+// Declaration of analogue pins used for each LDR
+int top_left_pin = A3;
+int top_right_pin = A5;
+int bottom_left_pin = A2;
+int bottom_right_pin = A4;
+
+// Declaration of the variables that will store the value read by each LDR
+int val_tlp = 0;
+int val_trp = 0;
+int val_blp = 0;
+int val_brp = 0;
+
+// Declaration of the variables that will store the angle at which each servo is in each loop. Initially 90º because it is the initial position that the servos will take in the setup.
+int previous_posh = 90;
+int previous_posv = 90;
+
+// Average values for each of the 4 directions
+int up = 0;
+int down = 0;
+int left = 0;
+int right = 0;
+
+// Difference in values per axis
+int hor = 0;
+int ver = 0;
+
+void setup() {
+  // Assignment of digital pin 10 for servoover and digital pin 6 for servohor
+  servover.attach(10);
+  servohor.attach(6);
+  // Send the servohor to 90º and wait 2,5s.
+  servohor.write(90);
+  delay(2500);
+  // Send the servover to 90º and wait for 6s. 
+  servover.write(90);
+  delay(6000);
+}
+
+void loop() {
+  // We obtain the value of each LDR and store it in their respective variables.
+  val_tlp = analogRead(top_left_pin);
+  val_trp = analogRead(top_right_pin);
+  val_blp = analogRead(bottom_left_pin);
+  val_brp = analogRead(bottom_right_pin);
+
+  // Calculation of the mean value of each direction
+  up = (val_tlp + val_trp)/2;
+  down = (val_blp + val_brp)/2;
+  left = (val_tlp + val_blp)/2;
+  right = (val_trp + val_brp)/2;
+
+  // Calculation of the difference of mean values per axis
+  hor = left - right;
+  ver = up - down;
+
+  // Vertical movement of the solar panel
+  if (abs(ver)>50){  // The light difference between the top and bottom LDRs must be greater than 50 (an empirically found value) to start moving. It is practically impossible for hor to be 0 and therefore we need a margin.
+    // To move down
+    if(ver<0){
+      // With this if we control that the servo does not go beyond the set limit angle. If we are not below the lower limit, the else is executed, which subtracts 1° from the current position and saves it.
+      if ((previous_posv - paso_ver) < servo_limit_low){
+        previous_posv = servo_limit_low;
+        servover.write(servo_limit_low);
+      }else{
+        servover.write(previous_posv - paso_ver);
+        previous_posv = previous_posv - paso_ver;
+      }
+
+    // To move up
+    }else if(ver>0){
+      // With this if we control that the servo does not go beyond the set limit angle. If we are not above the upper limit, the else is executed, which adds 1° to the current position and saves it.
+      if ((previous_posv + paso_ver) > servo_limit_high){
+        previous_posv = servo_limit_high;
+        servover.write(servo_limit_high);
+      }else{
+        servover.write(previous_posv + paso_ver);
+        previous_posv = previous_posv + paso_ver;
+      }
+    }
+  }
+
+  // Horizontal movement of the solar panel. Same programme logic as for vertical movement.
+  if (abs(hor)>50){    
+    // To move to the left
+    if(hor>0){
+      if ((previous_posh - paso_hor) < servo_limit_low){
+        previous_posh = servo_limit_low;
+        servohor.write(servo_limit_low);
+      }else{
+        servohor.write(previous_posh - paso_hor);
+        previous_posh = previous_posh - paso_hor;
+      }
+
+    // To move to the right
+    }else if(hor<0){
+      if ((previous_posh + paso_hor) > servo_limit_high){
+        previous_posh = servo_limit_high;
+        servohor.write(servo_limit_high);
+      }else{
+        servohor.write(previous_posh + paso_hor);
+        previous_posh = previous_posh + paso_hor;
+      }
+    }
+  }
+
+  // 10ms waiting time for the program to recalculate if it needs to update the position. With such a low time, we achieve a very smooth movement of the plate.
+  delay(10);
+}
